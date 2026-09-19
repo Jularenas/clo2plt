@@ -1,5 +1,8 @@
 # clo2plt
 
+**Live converter: <https://jularenas.github.io/clo2plt/>** — runs entirely in
+your browser, nothing is uploaded.
+
 Convert CLO 3D marker PDFs to HP-GL (`.plt`) for plotting and cutting, keeping
 every line type CLO exports.
 
