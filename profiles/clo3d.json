@@ -1,0 +1,10 @@
+{
+  "_comment": "Pen map override for clo2plt: pass with --pens. Line types are fixed; pen numbers are yours to assign. Two line types may share a pen.",
+  "cut": 1,
+  "seam": 2,
+  "notch": 3,
+  "grain": 4,
+  "internal": 5,
+  "label": 6,
+  "unknown": 7
+}

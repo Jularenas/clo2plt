@@ -1,0 +1,10 @@
+{
+  "_comment": "Everything on pen 1 except the cut line on pen 2, for a single-tool cutter whose controller distinguishes only two pens.",
+  "cut": 2,
+  "seam": 1,
+  "notch": 1,
+  "grain": 1,
+  "internal": 1,
+  "label": 1,
+  "unknown": 1
+}
