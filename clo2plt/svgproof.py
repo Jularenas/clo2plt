@@ -10,16 +10,17 @@ import html
 
 from . import classify
 
-# On-screen stroke widths in mm. Real pen widths are sub-0.2mm and would be
-# invisible when a 3-metre marker is scaled to fit a screen.
+# Stroke widths in screen pixels, paired with vector-effect:non-scaling-stroke
+# below. Widths in millimetres go sub-pixel once a 3-metre marker is scaled to
+# fit a screen, which washes the lines out; these stay legible at any zoom.
 _WIDTHS = {
-    classify.LABEL: 0.5,
-    classify.CUT: 1.1,
-    classify.SEAM: 0.7,
-    classify.NOTCH: 1.0,
-    classify.GRAIN: 0.7,
-    classify.INTERNAL: 0.7,
-    classify.UNKNOWN: 1.4,
+    classify.LABEL: 0.9,
+    classify.CUT: 1.7,
+    classify.SEAM: 1.2,
+    classify.NOTCH: 1.5,
+    classify.GRAIN: 1.2,
+    classify.INTERNAL: 1.2,
+    classify.UNKNOWN: 2.0,
 }
 
 _CSS = """
@@ -38,7 +39,9 @@ label{display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;
 .wrap{padding:1rem}
 svg{background:#fff;width:100%;height:auto;
     box-shadow:0 1px 6px #0003;display:block}
-.page{fill:none;stroke:#bbb;stroke-width:2;stroke-dasharray:12 8}
+.page{fill:none;stroke:#94a3b8;stroke-width:1.5;stroke-dasharray:9 7;
+      vector-effect:non-scaling-stroke}
+svg [data-kind]{vector-effect:non-scaling-stroke}
 """
 
 _JS = """
@@ -54,10 +57,10 @@ document.querySelectorAll('input[data-kind]').forEach(function(box){
 # Pen colours for previewing a .plt, where only pen numbers survive. Ordered to
 # match clo2plt's default map so a file it produced reads at a glance.
 PEN_COLORS = {
-    1: "#000000", 2: "#922097", 3: "#e00000", 4: "#8c8c8c",
-    5: "#8c3333", 6: "#0057b8", 7: "#00a000", 8: "#b8860b",
+    1: "#000000", 2: "#8e1a93", 3: "#d10000", 4: "#4b5563",
+    5: "#9a2f2f", 6: "#0050a8", 7: "#047857", 8: "#9a6b00",
 }
-PEN_WIDTHS = {1: 1.1, 2: 0.7, 3: 1.0, 4: 0.7, 5: 0.7, 6: 0.5}
+PEN_WIDTHS = {1: 1.7, 2: 1.2, 3: 1.5, 4: 1.2, 5: 1.2, 6: 0.9}
 
 
 def _shell(title, meta, legend, body, w, h, pad):
@@ -101,7 +104,8 @@ def emit_drawing(drawing, title="plt preview", pen_names=None):
         colour = PEN_COLORS.get(pen, "#555555")
         body.append(
             f'<g data-kind="pen{pen}" fill="none" stroke="{colour}"'
-            f' stroke-width="{PEN_WIDTHS.get(pen, 0.8)}"'
+            f' stroke-width="{PEN_WIDTHS.get(pen, 1.2)}"'
+            ' vector-effect="non-scaling-stroke"'
             ' stroke-linecap="round" stroke-linejoin="round">'
         )
         for poly in by_pen[pen]:
@@ -162,7 +166,8 @@ def emit(strokes, labels, extent, marker, pens, title="marker proof"):
         colour = classify.PROOF_COLORS[kind]
         body.append(
             f'<g data-kind="{kind}" fill="none" stroke="{colour}"'
-            f' stroke-width="{_WIDTHS.get(kind, 0.8)}"'
+            f' stroke-width="{_WIDTHS.get(kind, 1.2)}"'
+            ' vector-effect="non-scaling-stroke"'
             ' stroke-linecap="round" stroke-linejoin="round">'
         )
         for s in groups[kind]:

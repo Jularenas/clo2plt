@@ -4,14 +4,17 @@
 
 import * as classify from "./classify.js";
 
+// Stroke widths in screen pixels, paired with vector-effect:non-scaling-stroke.
+// Widths in millimetres go sub-pixel once a 3-metre marker is scaled to fit a
+// screen, which washes the lines out; these stay legible at any zoom.
 const WIDTHS = {
-  [classify.LABEL]: 0.5,
-  [classify.CUT]: 1.1,
-  [classify.SEAM]: 0.7,
-  [classify.NOTCH]: 1.0,
-  [classify.GRAIN]: 0.7,
-  [classify.INTERNAL]: 0.7,
-  [classify.UNKNOWN]: 1.4,
+  [classify.LABEL]: 0.9,
+  [classify.CUT]: 1.7,
+  [classify.SEAM]: 1.2,
+  [classify.NOTCH]: 1.5,
+  [classify.GRAIN]: 1.2,
+  [classify.INTERNAL]: 1.2,
+  [classify.UNKNOWN]: 2.0,
 };
 
 function esc(s) {
@@ -49,7 +52,8 @@ export function svg(strokes, labels, extent, marker, { showPage = true } = {}) {
     if (!list) continue;
     body.push(
       `<g data-kind="${kind}" fill="none" stroke="${classify.PROOF_COLORS[kind]}" ` +
-        `stroke-width="${WIDTHS[kind] ?? 0.8}" stroke-linecap="round" stroke-linejoin="round">`
+        `stroke-width="${WIDTHS[kind] ?? 1.2}" vector-effect="non-scaling-stroke" ` +
+        `stroke-linecap="round" stroke-linejoin="round">`
     );
     for (const s of list) {
       body.push(

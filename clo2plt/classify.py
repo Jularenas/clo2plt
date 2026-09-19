@@ -30,12 +30,12 @@ DEFAULT_PENS = {CUT: 1, SEAM: 2, NOTCH: 3, GRAIN: 4, INTERNAL: 5, LABEL: 6, UNKN
 # Used for the SVG proof only; the plotter decides real pen colours.
 PROOF_COLORS = {
     CUT: "#000000",
-    SEAM: "#922097",
-    NOTCH: "#e00000",
-    GRAIN: "#8c8c8c",
-    INTERNAL: "#8c3333",
-    LABEL: "#0057b8",
-    UNKNOWN: "#00a000",
+    SEAM: "#8e1a93",
+    NOTCH: "#d10000",
+    GRAIN: "#4b5563",
+    INTERNAL: "#9a2f2f",
+    LABEL: "#0050a8",
+    UNKNOWN: "#047857",
 }
 
 ORDER = [CUT, SEAM, NOTCH, GRAIN, INTERNAL, LABEL, UNKNOWN]

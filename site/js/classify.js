@@ -24,9 +24,9 @@ export const DEFAULT_PENS = {
 };
 
 export const PROOF_COLORS = {
-  [CUT]: "#000000", [SEAM]: "#922097", [NOTCH]: "#e00000",
-  [GRAIN]: "#8c8c8c", [INTERNAL]: "#8c3333", [LABEL]: "#0057b8",
-  [UNKNOWN]: "#00a000",
+  [CUT]: "#000000", [SEAM]: "#8e1a93", [NOTCH]: "#d10000",
+  [GRAIN]: "#4b5563", [INTERNAL]: "#9a2f2f", [LABEL]: "#0050a8",
+  [UNKNOWN]: "#047857",
 };
 
 export const ORDER = [CUT, SEAM, NOTCH, GRAIN, INTERNAL, LABEL, UNKNOWN];
