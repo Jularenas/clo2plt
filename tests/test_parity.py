@@ -33,6 +33,7 @@ CASES = [
     ("counterscale", DESPIECE, 0, 0.9709, None),
     ("onepiece", DESPIECE, 0, 1.0, ["pretina pantalon"]),
     ("tight", RIB, 0, 1.0, None),
+    ("viewercolors", RIB, 0, 1.0, None),
 ]
 
 JS_DRIVER = r"""
@@ -55,7 +56,8 @@ for (const c of cases) {
     strokes = p.strokes;
     labels = p.labels;
   }
-  const [text] = emit(strokes, labels, DEFAULT_PENS);
+  const [text] = emit(strokes, labels, DEFAULT_PENS, 'label', false, null,
+                      !!c.viewerColors);
   fs.writeFileSync(c.out, text.replace(/\n/g, '\r\n'), 'latin1');
 }
 """
@@ -77,6 +79,7 @@ class Parity(unittest.TestCase):
             js_cases.append({
                 "src": src, "out": os.path.join(cls.tmp, f"js_{name}.plt"),
                 "rotate": rotate, "scale": scale, "tol": tol, "pieces": pieces,
+                "viewerColors": name == "viewercolors",
             })
         js_cases.append({
             "calibration": 200, "out": os.path.join(cls.tmp, "js_cal.plt"),
@@ -99,6 +102,8 @@ class Parity(unittest.TestCase):
                     "--scale", str(scale), "--tolerance", str(tol)]
             if pieces:
                 argv += ["--pieces", ",".join(pieces)]
+            if name == "viewercolors":
+                argv += ["--viewer-colors"]
             r = subprocess.run(
                 [sys.executable, os.path.join(ROOT, "clo2plt.py"), *argv],
                 capture_output=True, text=True, cwd=ROOT,

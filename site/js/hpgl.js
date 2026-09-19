@@ -11,10 +11,20 @@ function u(mm) {
   return pyRound(mm * UNITS_PER_MM);
 }
 
-export function emit(strokes, labels, pens, textMode = "label", pageAdvance = false, header = null) {
+export function emit(strokes, labels, pens, textMode = "label", pageAdvance = false,
+                     header = null, viewerColors = false) {
   const out = [];
   if (header) for (const line of header) out.push(`CO"${toAscii(line)[0]}";`);
   out.push("IN;");
+  if (viewerColors) {
+    // PC is HP-GL/2. Viewers honour it instead of their default palette;
+    // plotters that do not know it skip it. Opt-in, so a plain-HP-GL
+    // controller never meets it unasked.
+    for (const pen of [...new Set(Object.values(pens))].sort((a, b) => a - b)) {
+      const rgb = classify.PEN_RGB[pen];
+      if (rgb) out.push(`PC${pen},${rgb[0]},${rgb[1]},${rgb[2]};`);
+    }
+  }
   out.push("PA;");
 
   const byPen = new Map();

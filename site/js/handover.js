@@ -41,8 +41,19 @@ export function specSheet(files) {
     }
   }
 
-  const pens = classify.ORDER.filter((k) => k !== classify.UNKNOWN)
-    .map((k) => `  Pen ${classify.DEFAULT_PENS[k]}   ${k}\n`)
+  const used = new Map();
+  for (const k of classify.ORDER) {
+    if (k === classify.UNKNOWN) continue;
+    const pen = classify.DEFAULT_PENS[k];
+    if (!used.has(pen)) used.set(pen, []);
+    used.get(pen).push(k);
+  }
+  const pens = [...used.keys()].sort((a, b) => a - b)
+    .map((pen) => {
+      const kinds = used.get(pen).sort().join(", ");
+      const pad = " ".repeat(Math.max(1, 22 - kinds.length));
+      return `  Pen ${pen}   ${kinds}${pad}(shows as ${classify.PEN_APPEARANCE[pen] || "pen " + pen})\n`;
+    })
     .join("");
 
   const orient = hasAlternates
@@ -73,10 +84,15 @@ one or the other, never both.
 ${lines.join("")}
 PEN ASSIGNMENT
 Each pen carries one kind of pattern line. On a single-ink plotter they
-will all print the same colour, which is expected -- the separation is so
-that individual line types can be suppressed if you need that.
+all print the same colour, which is expected -- the separation is so that
+individual line types can be suppressed if you need that. The colour
+shown is what a viewer or RIP preview displays for that pen under the
+standard HP-GL/2 palette.
 
 ${pens}
+Pens 4 (yellow) and 7 (cyan) are deliberately unused: they are hard to
+see on white in most viewers.
+
 ORIENTATION -- PLEASE READ
 The HP-GL X axis must map ACROSS the paper width, and Y along the feed.
 Each file's paper requirement is listed above; nothing here needs to be

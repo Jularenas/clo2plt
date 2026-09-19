@@ -149,12 +149,29 @@ class RoundTrip(unittest.TestCase):
             self.assertAlmostEqual(a, b, delta=1.0 / hpgl.UNITS_PER_MM)
 
     def test_pens_carry_the_line_types(self):
-        # cut=1 seam=2 notch=3 grain=4 internal=5 label=6
+        # cut=1 seam=2 notch=3 grain=5 internal=6; labels ride pen 1 with cut.
         self.assertEqual(len(self.pens[1]), 42)
         self.assertEqual(len(self.pens[2]), 42)
         self.assertEqual(len(self.pens[3]), 576)
-        self.assertEqual(len(self.pens[4]), 42)
-        self.assertEqual(len(self.pens[5]), 21)
+        self.assertEqual(len(self.pens[5]), 42)
+        self.assertEqual(len(self.pens[6]), 21)
+
+    def test_pale_palette_slots_are_left_unused(self):
+        """Pens 4 and 7 are yellow and cyan in viewers -- unreadable on white."""
+        self.assertNotIn(4, self.pens)
+        self.assertNotIn(7, self.pens)
+        self.assertNotIn("SP4;", self.text)
+        self.assertNotIn("SP7;", self.text)
+
+    def test_viewer_colors_are_opt_in(self):
+        self.assertNotIn("PC", self.text)
+        with_colors, _ = hpgl.emit(
+            self.strokes, self.labels, classify.load_pens(), viewer_colors=True)
+        self.assertIn("PC1,0,0,0;", with_colors)
+        self.assertIn("PC5,0,60,200;", with_colors)
+        # every pen actually used must get a colour
+        for pen in sorted(self.pens):
+            self.assertIn(f"PC{pen},", with_colors)
 
     def test_waistband_dimensions_survive_to_hpgl(self):
         widest = max(self.pens[1], key=lambda p: g.bbox([p])[2] - g.bbox([p])[0])
@@ -190,7 +207,7 @@ class HpglReader(unittest.TestCase):
         cls.drawing = hpglread.parse(text)
 
     def test_reads_back_every_pen(self):
-        self.assertEqual(sorted(self.drawing.pens), [1, 2, 3, 4, 5, 6])
+        self.assertEqual(sorted(self.drawing.pens), [1, 2, 3, 5, 6])
 
     def test_reads_back_the_extent(self):
         for a, b in zip(self.drawing.bbox, self.extent):
@@ -286,7 +303,7 @@ class Calibration(unittest.TestCase):
         self.assertAlmostEqual(box[3] - box[1], 100.0, places=4)
 
     def test_bar_is_exactly_100mm(self):
-        box = g.bbox(self.by_pen[5])
+        box = g.bbox(self.by_pen[6])
         self.assertAlmostEqual(box[2] - box[0], 100.0, places=4)
 
     def test_ticks_are_10mm_and_every_50mm(self):
@@ -296,14 +313,14 @@ class Calibration(unittest.TestCase):
             self.assertAlmostEqual(math.dist(pts[0], pts[-1]), 10.0, places=4)
 
     def test_diagonals_cross_at_the_centre(self):
-        a, b = self.by_pen[4]
+        a, b = self.by_pen[5]
         mid_a = ((a[0][0] + a[-1][0]) / 2, (a[0][1] + a[-1][1]) / 2)
         mid_b = ((b[0][0] + b[-1][0]) / 2, (b[0][1] + b[-1][1]) / 2)
         self.assertAlmostEqual(mid_a[0], mid_b[0], places=4)
         self.assertAlmostEqual(mid_a[1], mid_b[1], places=4)
 
     def test_every_pen_is_exercised(self):
-        self.assertEqual(sorted(self.drawing.pens), [1, 2, 3, 4, 5, 6])
+        self.assertEqual(sorted(self.drawing.pens), [1, 2, 3, 5, 6])
 
     def test_labels_state_the_true_sizes(self):
         texts = " ".join(t.text for t in self.drawing.texts)

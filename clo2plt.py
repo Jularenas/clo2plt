@@ -47,6 +47,11 @@ def build_parser():
                         "'page' keeps CLO page coordinates")
     p.add_argument("--page-advance", action="store_true",
                    help="append PG; to advance the page when finished")
+    p.add_argument("--viewer-colors", action="store_true",
+                   help="add HP-GL/2 PC instructions defining dark pen "
+                        "colours, so third-party viewers stop rendering lines "
+                        "in pale yellow/cyan. Harmless on plotters that ignore "
+                        "PC, but off by default to keep the file plain HP-GL")
     p.add_argument("--comment", action="store_true",
                    help="prepend HP-GL/2 CO provenance comments (off by "
                         "default: plain HP-GL has no comment instruction)")
@@ -118,7 +123,8 @@ def main(argv=None):
             ]
         text_mode = "label" if args.text == "label" else "none"
         data, retitled = hpgl.emit(strokes, labels, pens, text_mode,
-                                   args.page_advance, header)
+                                   args.page_advance, header,
+                                   args.viewer_colors)
         try:
             with open(args.output, "w", encoding="ascii", newline="\r\n") as fh:
                 fh.write(data)

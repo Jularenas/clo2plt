@@ -20,6 +20,7 @@ const opts = () => ({
   scale: Number($("scale").value) || 1,
   text: $("text").value,
   origin: $("origin").value,
+  viewerColors: $("viewerColors").checked,
   pieces: chosenPieces(),
 });
 
@@ -70,7 +71,10 @@ async function convert(entry, overrides = {}) {
     placed.strokes,
     o.text === "none" ? [] : placed.labels,
     classify.DEFAULT_PENS,
-    o.text === "none" ? "none" : "label"
+    o.text === "none" ? "none" : "label",
+    false,
+    null,
+    o.viewerColors
   );
   return { marker, placed, text, retitled };
 }
@@ -303,7 +307,8 @@ async function downloadAll() {
   const problems = [];
 
   const cal = buildCal(200);
-  const [calText] = emit(cal.strokes, cal.labels, classify.DEFAULT_PENS);
+  const [calText] = emit(cal.strokes, cal.labels, classify.DEFAULT_PENS,
+                         "label", false, null, o.viewerColors);
   const calName = "1 - CALIBRATION 200mm.plt";
   entries.push({ name: calName, bytes: toBytes(calText) });
   specFiles.push(describe(calName, cal, calText));
@@ -377,7 +382,7 @@ $("tolerance").oninput = () => {
   $("tolOut").textContent = `${Number($("tolerance").value).toFixed(3)} mm`;
   schedulePreview();
 };
-for (const id of ["rotate", "scale", "text", "origin"]) {
+for (const id of ["rotate", "scale", "text", "origin", "viewerColors"]) {
   $(id).onchange = updatePreview;
 }
 $("allPieces").onclick = () => {
@@ -398,7 +403,8 @@ function schedulePreview() {
 $("dlAll").onclick = downloadAll;
 $("dlCal").onclick = () => {
   const cal = buildCal(200);
-  const [text] = emit(cal.strokes, cal.labels, classify.DEFAULT_PENS);
+  const [text] = emit(cal.strokes, cal.labels, classify.DEFAULT_PENS,
+                      "label", false, null, $("viewerColors").checked);
   download(new Blob([toBytes(text)], { type: "application/octet-stream" }),
            "CALIBRATION 200mm.plt");
 };

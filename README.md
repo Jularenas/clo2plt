@@ -12,14 +12,22 @@ away — they rasterize, flatten everything onto one pen, or choke on a page
 measured in metres. This reads the structure directly and puts each line type
 on its own pen.
 
-| Line type | Pen | Source |
-|---|---|---|
-| Cut line | 1 | black stroke, one per piece |
-| Seam line | 2 | purple stroke, one per piece |
-| Notches | 3 | red / dark-grey ticks |
-| Grain line | 4 | light-grey arrow |
-| Internal / fold | 5 | dark-red stroke |
-| Piece label | 6 | text, `LB` or vector outlines |
+| Line type | Pen | Shows as | Source |
+|---|---|---|---|
+| Cut line | 1 | black | black stroke, one per piece |
+| Seam line | 2 | red | purple stroke, one per piece |
+| Notches | 3 | green | red / dark-grey ticks |
+| Grain line | 5 | blue | light-grey arrow |
+| Internal / fold | 6 | magenta | dark-red stroke |
+| Piece label | 1 | black | text, `LB` or vector outlines |
+
+**Pens 4 and 7 are deliberately unused.** Viewers and RIP previews colour lines
+by pen number using the standard HP-GL/2 palette, in which pen 4 is yellow and
+pen 7 cyan — both near-invisible on white paper. Since a single-ink plotter
+prints every pen the same, choosing dark palette slots costs nothing on the
+machine and makes previews readable. `--viewer-colors` goes further, emitting
+HP-GL/2 `PC` instructions that set explicit dark colours; it is off by default
+so the file stays plain HP-GL for the plotter.
 
 Fabric-texture fills are dropped — they carry no plotter meaning. The count of
 dropped fills is reported so you can see it happened.
@@ -77,6 +85,7 @@ python3 clo2plt.py marker.pdf -o test.plt --pieces "pretina pantalon"
 | `--rotate` | `0` | `90`/`180`/`270` to match the roll direction |
 | `--origin` | `fit` | `fit` shifts to the geometry bbox; `page` keeps CLO coordinates |
 | `--page-advance` | off | append `PG;` |
+| `--viewer-colors` | off | HP-GL/2 `PC` colour definitions, for third-party viewers |
 | `--comment` | off | HP-GL/2 `CO` provenance comments |
 
 ## Before the first job: check the scale

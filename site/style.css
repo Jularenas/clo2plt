@@ -76,6 +76,10 @@ button:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); 
   width: 100%; font: inherit; padding: .4rem .5rem; border-radius: 6px;
   border: 1px solid var(--line); background: var(--bg); color: var(--ink);
 }
+.field.check { display: grid; grid-template-columns: auto 1fr; gap: .2rem .45rem; }
+.field.check input { margin: .25rem 0 0; }
+.field.check > span { font-weight: 600; font-size: .9rem; margin: 0; }
+.field.check small { grid-column: 2; margin-top: .1rem; }
 .row { display: flex; gap: .5rem; align-items: center; }
 .row input[type=range] { flex: 1; }
 output { font-variant-numeric: tabular-nums; font-size: .86rem; min-width: 5.5em; text-align: right; }

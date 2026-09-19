@@ -22,7 +22,7 @@ def _u(mm):
 
 
 def emit(strokes, labels, pens, text_mode="label", page_advance=False,
-         header=None):
+         header=None, viewer_colors=False):
     """Return (document, retitled) where `retitled` lists transliterated labels.
 
     `header` is emitted as HP-GL/2 CO comments only when requested; plain HP-GL
@@ -34,6 +34,14 @@ def emit(strokes, labels, pens, text_mode="label", page_advance=False,
         for line in header:
             out.append(f'CO"{_ascii(line)[0]}";')
     out.append("IN;")
+    if viewer_colors:
+        # PC is HP-GL/2. Viewers honour it and show these colours instead of
+        # their default palette; plotters that do not know it skip it. Opt-in,
+        # because a plain-HP-GL controller should not meet it unasked.
+        for pen in sorted(set(pens.values())):
+            rgb = classify.PEN_RGB.get(pen)
+            if rgb:
+                out.append(f"PC{pen},{rgb[0]},{rgb[1]},{rgb[2]};")
     out.append("PA;")
 
     by_pen = {}

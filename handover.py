@@ -33,10 +33,15 @@ one or the other, never both.
 {files}
 PEN ASSIGNMENT
 Each pen carries one kind of pattern line. On a single-ink plotter they
-will all print the same colour, which is expected -- the separation is so
-that individual line types can be suppressed if you need that.
+all print the same colour, which is expected -- the separation is so that
+individual line types can be suppressed if you need that. The colour
+shown is what a viewer or RIP preview displays for that pen under the
+standard HP-GL/2 palette.
 
 {pens}
+Pens 4 (yellow) and 7 (cyan) are deliberately unused: they are hard to
+see on white in most viewers.
+
 ORIENTATION -- PLEASE READ
 The HP-GL X axis must map ACROSS the paper width, and Y along the feed.
 Each file's paper requirement is listed above; nothing here needs to be
@@ -123,10 +128,16 @@ def main(argv=None):
         print("handover: error: no readable .plt files given", file=sys.stderr)
         return 1
 
+    used = {}
+    for kind, pen in classify.DEFAULT_PENS.items():
+        if kind == classify.UNKNOWN:
+            continue
+        used.setdefault(pen, []).append(kind)
     pens = "".join(
-        f"  Pen {pen}   {kind}\n"
-        for kind, pen in sorted(classify.DEFAULT_PENS.items(), key=lambda x: x[1])
-        if kind != classify.UNKNOWN
+        f"  Pen {pen}   {', '.join(sorted(kinds))}"
+        f"{' ' * max(1, 22 - len(', '.join(sorted(kinds))))}"
+        f"(shows as {classify.PEN_APPEARANCE.get(pen, 'pen ' + str(pen))})\n"
+        for pen, kinds in sorted(used.items())
     )
     if alternates:
         orient = (
