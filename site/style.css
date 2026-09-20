@@ -61,14 +61,23 @@ button:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); 
 .ghost { background: transparent; }
 
 .cols { display: grid; grid-template-columns: 290px 1fr; gap: 1.1rem; align-items: start; }
-@media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
 
 .panel {
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 1rem; position: sticky; top: 1rem;
 }
-.panel h2 { margin: 0 0 .85rem; font-size: .95rem; text-transform: uppercase;
-            letter-spacing: .06em; color: var(--muted); }
+.panel > summary {
+  font-size: .95rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); font-weight: 600; cursor: pointer; list-style: none;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel > summary::-webkit-details-marker { display: none; }
+.panel > summary::after {
+  content: "▾"; transition: transform .15s; font-size: .9rem;
+}
+.panel[open] > summary { margin-bottom: .85rem; }
+.panel[open] > summary::after { transform: rotate(180deg); }
+.panel > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .field { display: block; margin-bottom: 1rem; }
 .field > span:first-child, legend { display: block; font-weight: 600; margin-bottom: .3rem; font-size: .9rem; }
 .field small { display: block; color: var(--muted); font-size: .8rem; margin-top: .25rem; }
@@ -124,6 +133,35 @@ fieldset.field { border: 1px solid var(--line); border-radius: 8px; padding: .7r
   fill: none; stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 9 7;
   vector-effect: non-scaling-stroke;
 }
+
+/* Single column below this width. The options move to a collapsed accordion
+   above the results rather than a 1000px-tall block the user has to scroll
+   past to reach their converted file. Sticky is dropped: a panel taller than
+   the viewport cannot usefully stick. */
+@media (max-width: 860px) {
+  .cols { grid-template-columns: 1fr; gap: .8rem; }
+  .panel { position: static; padding: .75rem .9rem; }
+  .pieces { max-height: 40vh; }
+  .top { padding: 1.1rem 1rem .6rem; }
+  .top h1 { font-size: 1.2rem; }
+  main { padding: 0 1rem 2rem; }
+  .drop { padding: 1.75rem 1rem; }
+  .actions { gap: .4rem; }
+  .actions button { flex: 1 1 auto; }
+  .legend { gap: .45rem .8rem; padding: .6rem .75rem; }
+  .stage { padding: .6rem; }
+}
+
+@media (max-width: 420px) {
+  .cardacts button, .actions button { width: 100%; }
+  .tag { font-size: .72rem; }
+  /* Stack the compact drop bar rather than letting the label and the button
+     each wrap to two lines beside one another. */
+  .drop.compact { flex-direction: column; gap: .5rem; text-align: center; }
+  .drop.compact button { width: 100%; }
+  .top h1 { font-size: 1.1rem; }
+}
+.drop.compact button { white-space: nowrap; }
 
 .errors {
   margin-top: 1rem; border: 1px solid var(--err); border-radius: var(--radius);

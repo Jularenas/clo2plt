@@ -430,4 +430,9 @@ $("reset").onclick = () => {
   render();
 };
 
+// Collapse the options on small screens so the result, not the controls, is
+// what greets you. Set once on load; after that the disclosure is the user's.
+const WIDE = window.matchMedia("(min-width: 861px)");
+$("optionsPanel").open = WIDE.matches;
+
 $("tolOut").textContent = "0.050 mm";
