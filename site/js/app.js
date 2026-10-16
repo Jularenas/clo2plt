@@ -168,6 +168,19 @@ function render() {
     acts.append(dl, show);
     card.append(acts);
 
+    if (m.offpage.length) {
+      const p = document.createElement("p");
+      p.className = "note";
+      const what = m.offpage
+        .map((d) => (d.text ? `label “${d.text}”` : `a stroke on ${d.piece}`))
+        .join(", ");
+      p.textContent =
+        `Dropped ${what}: it sits entirely outside the PDF page ` +
+        `(x ${d0(m.offpage[0].box[0])} mm), so CLO never shows it, and keeping ` +
+        `it would stretch the plot.`;
+      card.append(p);
+    }
+
     if (m.unknownColors.size) {
       const p = document.createElement("p");
       p.className = "note";
@@ -182,6 +195,10 @@ function render() {
   const ready = docs.some((d) => d.marker);
   $("dlAll").disabled = !ready;
   $("dlSpec").disabled = !ready;
+}
+
+function d0(v) {
+  return Math.round(v).toLocaleString("en-US");
 }
 
 function refreshPieces() {

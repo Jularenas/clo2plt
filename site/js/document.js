@@ -7,7 +7,7 @@ import { PdfError, load } from "./pdfread.js";
 
 export const MM_PER_POINT = 25.4 / 72;
 
-export async function read(bytes, { tolerance = 0.05, pieces = null } = {}) {
+export async function read(bytes, { tolerance = 0.05, pieces = null, keepOffpage = false } = {}) {
   const pdf = await load(bytes);
   const page = firstPage(pdf);
   const body = pdf.raw(page);
@@ -28,6 +28,17 @@ export async function read(bytes, { tolerance = 0.05, pieces = null } = {}) {
 
   const pageW = (media[2] - media[0]) * MM_PER_POINT;
   const pageH = (media[3] - media[1]) * MM_PER_POINT;
+
+  // Elements lying entirely outside the page are invisible in CLO's PDF (it
+  // clips them). One stray one -- CLO parks the fabric name ~860 mm left of
+  // some markers -- stretches the plot and lands at negative coordinates.
+  let offpage = [];
+  if (!keepOffpage) {
+    const culled = cullOffpage(interp.strokes, interp.labels, pageW, pageH);
+    interp.strokes = culled.strokes;
+    interp.labels = culled.labels;
+    offpage = culled.dropped;
+  }
 
   const unknown = new Map();
   for (const s of interp.strokes) {
@@ -67,6 +78,7 @@ export async function read(bytes, { tolerance = 0.05, pieces = null } = {}) {
     strokes, labels,
     unknownColors: unknown,
     fillsDropped: interp.fillsDropped,
+    offpage,
     curves: interp.curves,
     lines: interp.lines,
     producer: prod ? prod[1] : "",
@@ -82,6 +94,45 @@ export function counts(marker) {
   for (const s of marker.strokes) tally[s.kind] += 1;
   tally[classify.LABEL] = marker.labels.length;
   return tally;
+}
+
+// Rough glyph metrics as fractions of font size; PDF text gives no extents.
+const ADVANCE = 0.62;
+const ASCENT = 0.8;
+const DESCENT = 0.25;
+
+export function labelBox(label) {
+  const rad = (label.angle * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const length = ADVANCE * label.size * Math.max(label.text.length, 1);
+  const [x, y] = label.origin;
+  const corners = [[0, -DESCENT], [length, -DESCENT], [length, ASCENT], [0, ASCENT]]
+    .map(([along, up]) => {
+      const u = up * label.size;
+      return [x + along * cos - u * sin, y + along * sin + u * cos];
+    });
+  return g.bbox([corners]);
+}
+
+/** Split off elements whose whole extent lies outside the page. Anything that
+ *  touches the page is kept, including grain arrows running past the edge. */
+export function cullOffpage(strokes, labels, pageW, pageH) {
+  const outside = (b) => b[2] < 0 || b[0] > pageW || b[3] < 0 || b[1] > pageH;
+  const dropped = [];
+  const keptS = [];
+  const keptL = [];
+  for (const s of strokes) {
+    const box = g.bbox([s.points]);
+    if (outside(box)) dropped.push({ kind: "stroke", piece: s.piece, text: null, box });
+    else keptS.push(s);
+  }
+  for (const l of labels) {
+    const box = labelBox(l);
+    if (outside(box)) dropped.push({ kind: "label", piece: l.piece, text: l.text, box });
+    else keptL.push(l);
+  }
+  return { strokes: keptS, labels: keptL, dropped };
 }
 
 function firstPage(pdf) {

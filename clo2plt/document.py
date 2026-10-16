@@ -1,5 +1,6 @@
 """Load a CLO 3D marker PDF into classified, plotter-ready geometry."""
 
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -28,6 +29,7 @@ class Marker:
     labels: list
     unknown_colors: dict
     fills_dropped: int
+    offpage: list
     curves: int
     lines: int
     producer: str = ""
@@ -45,8 +47,14 @@ class Marker:
         return tally
 
 
-def read(path, tolerance=0.05, pieces=None):
-    """Parse `path` into a Marker. `pieces` optionally filters by piece name."""
+def read(path, tolerance=0.05, pieces=None, keep_offpage=False):
+    """Parse `path` into a Marker. `pieces` optionally filters by piece name.
+
+    Elements lying entirely outside the page are dropped unless
+    `keep_offpage`: the PDF clips them, so CLO never shows them, and a single
+    stray one -- CLO parks the fabric name ~860 mm left of some markers --
+    stretches the plot and lands at negative plotter coordinates.
+    """
     pdf = load(path)
     page = _first_page(pdf)
     body = pdf.raw(page)
@@ -68,6 +76,11 @@ def read(path, tolerance=0.05, pieces=None):
     # means a differently-scaled export is caught below instead of mis-sized.
     page_w = (media[2] - media[0]) * MM_PER_POINT
     page_h = (media[3] - media[1]) * MM_PER_POINT
+
+    offpage = []
+    if not keep_offpage:
+        result.strokes, result.labels, offpage = cull_offpage(
+            result.strokes, result.labels, page_w, page_h)
 
     unknown = {}
     for s in result.strokes:
@@ -108,10 +121,58 @@ def read(path, tolerance=0.05, pieces=None):
         labels=result.labels,
         unknown_colors=unknown,
         fills_dropped=result.fills_dropped,
+        offpage=offpage,
         curves=result.curves,
         lines=result.lines,
         producer=producer,
     )
+
+
+# Rough glyph metrics, as fractions of the font size. HP-GL and the PDF text
+# operators give no extents, so a label's footprint is estimated from these.
+_ADVANCE = 0.62
+_ASCENT = 0.80
+_DESCENT = 0.25
+
+
+def label_box(label):
+    """Approximate (minx, miny, maxx, maxy) of a label, from its baseline start."""
+    rad = math.radians(label.angle)
+    cos, sin = math.cos(rad), math.sin(rad)
+    length = _ADVANCE * label.size * max(len(label.text), 1)
+    x, y = label.origin
+    corners = []
+    for along, up in ((0.0, -_DESCENT), (length, -_DESCENT),
+                      (length, _ASCENT), (0.0, _ASCENT)):
+        u = up * label.size
+        corners.append((x + along * cos - u * sin, y + along * sin + u * cos))
+    return g.bbox([corners])
+
+
+def cull_offpage(strokes, labels, page_w, page_h):
+    """Split off elements whose whole extent lies outside the page.
+
+    Returns (strokes, labels, dropped). Anything that touches the page is kept,
+    including grain arrows that run past the edge -- only elements the PDF
+    would clip away entirely are removed. `dropped` lists them for reporting.
+    """
+    def outside(box):
+        return box[2] < 0 or box[0] > page_w or box[3] < 0 or box[1] > page_h
+
+    kept_s, kept_l, dropped = [], [], []
+    for s in strokes:
+        box = g.bbox([s.points])
+        if outside(box):
+            dropped.append(("stroke", s.piece, None, box))
+        else:
+            kept_s.append(s)
+    for l in labels:
+        box = label_box(l)
+        if outside(box):
+            dropped.append(("label", l.piece, l.text, box))
+        else:
+            kept_l.append(l)
+    return kept_s, kept_l, dropped
 
 
 def _first_page(pdf):

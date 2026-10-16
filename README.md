@@ -84,6 +84,7 @@ python3 clo2plt.py marker.pdf -o test.plt --pieces "pretina pantalon"
 | `--pens FILE` | built-in | JSON pen map, see `profiles/` |
 | `--rotate` | `0` | `90`/`180`/`270` to match the roll direction |
 | `--origin` | `fit` | `fit` shifts to the geometry bbox; `page` keeps CLO coordinates |
+| `--keep-offpage` | off | keep elements lying entirely outside the PDF page |
 | `--page-advance` | off | append `PG;` |
 | `--viewer-colors` | off | HP-GL/2 `PC` colour definitions, for third-party viewers |
 | `--comment` | off | HP-GL/2 `CO` provenance comments |
@@ -182,6 +183,15 @@ edge of the page. `--origin fit` (the default) shifts everything so nothing is
 lost; the shift is along the roll, so piece positions relative to each other
 and to the fabric width are unchanged. `--origin page` keeps CLO's coordinates
 and lets the plotter clip, and warns when that would discard something.
+
+### Elements entirely outside the page
+
+Some CLO exports place an element well off the page — one marker parked its
+`TELA GRIS` fabric tag 860 mm to the left of a 1450 mm page. The PDF clips it,
+so it never appears in CLO's output, but carried into a `.plt` it stretches the
+drawing and lands at negative plotter coordinates. Such elements are dropped
+and named in the report. Anything that merely *overlaps* the edge is kept.
+`--keep-offpage` keeps everything.
 
 ### Labels
 

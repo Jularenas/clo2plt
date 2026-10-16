@@ -45,6 +45,10 @@ def build_parser():
     p.add_argument("--origin", choices=("fit", "page"), default="fit",
                    help="'fit' shifts geometry to its own bbox (default), "
                         "'page' keeps CLO page coordinates")
+    p.add_argument("--keep-offpage", action="store_true",
+                   help="keep elements lying entirely outside the PDF page. "
+                        "They are invisible in CLO's PDF, so by default they "
+                        "are dropped and reported")
     p.add_argument("--page-advance", action="store_true",
                    help="append PG; to advance the page when finished")
     p.add_argument("--viewer-colors", action="store_true",
@@ -79,7 +83,8 @@ def main(argv=None):
     names = args.pieces.split(",") if args.pieces else None
 
     try:
-        marker = document.read(args.input, tolerance=args.tolerance, pieces=names)
+        marker = document.read(args.input, tolerance=args.tolerance,
+                               pieces=names, keep_offpage=args.keep_offpage)
     except PdfError as exc:
         return _fail(str(exc))
     except OSError as exc:
@@ -172,6 +177,15 @@ def _report(marker, strokes, labels, extent, shift, pens, args, retitled=()):
     print(f"read   {marker.path}", file=out)
     print(f"       {len(marker.pieces)} pieces, {marker.curves} curves, "
           f"{marker.lines} lines -> {pts:,} points at {args.tolerance} mm", file=out)
+    if marker.offpage:
+        n = len(marker.offpage)
+        print(f"note   {n} element{'s' if n != 1 else ''} entirely outside the page "
+              "dropped -- the PDF clips them, so CLO never shows them:", file=out)
+        for kind, piece, text, box in marker.offpage:
+            what = f"label {text!r}" if text else f"stroke on {piece!r}"
+            print(f"       {what} at x {box[0]:.1f}..{box[2]:.1f}, "
+                  f"y {box[1]:.1f}..{box[3]:.1f} mm (--keep-offpage keeps it)",
+                  file=out)
     if marker.fills_dropped:
         print(f"       {marker.fills_dropped} fabric-texture fills dropped "
               "(not plottable)", file=out)
@@ -213,8 +227,12 @@ def _report(marker, strokes, labels, extent, shift, pens, args, retitled=()):
     if retitled:
         print(f"note   {len(retitled)} label(s) folded to ASCII for plotter text "
               "(--text=outline keeps the exact spelling):", file=out)
-        for before, after in retitled:
-            print(f"       {before!r} -> {after!r}", file=out)
+        counts = {}
+        for pair in retitled:
+            counts[pair] = counts.get(pair, 0) + 1
+        for (before, after), n in counts.items():
+            times = f"  x{n}" if n > 1 else ""
+            print(f"       {before!r} -> {after!r}{times}", file=out)
 
     if args.output:
         print(f"wrote  {args.output}", file=out)

@@ -141,6 +141,58 @@ class Parity(unittest.TestCase):
             self.fail(f"{name}: lengths differ, python {len(py)} vs js {len(js)}")
 
 
+CULL_DRIVER = r"""
+import { cullOffpage } from '%(root)s/site/js/document.js';
+const labels = JSON.parse(process.argv[2]).map(
+  ([text, x, y, angle, size]) => ({ text, origin: [x, y], angle, size, piece: 'p' }));
+const strokes = JSON.parse(process.argv[3]).map(pts => ({ points: pts, piece: 'p' }));
+const r = cullOffpage(strokes, labels, 1450, 1510.2);
+console.log(JSON.stringify({ labels: r.labels.map(l => l.text),
+                             strokes: r.strokes.length }));
+"""
+
+CULL_LABELS = [
+    ["TELA GRIS", -860.651, 67.6246, 0, 18],
+    ["perchado gris", -20, 50, 0, 18],
+    ["delantero", 100, -5, 90, 11],
+    ["far right", 1500, 50, 0, 11],
+    ["above", 50, 1530, 0, 11],
+    ["inside", 700, 700, 180, 11],
+]
+CULL_STROKES = [
+    [[-900, 10], [-880, 10]],
+    [[484.8, 113], [498.3, 140], [498.3, -40]],
+    [[1460, 10], [1500, 10]],
+]
+
+
+@unittest.skipUnless(shutil.which("node"), "node not installed")
+class CullParity(unittest.TestCase):
+    def test_js_and_python_drop_the_same_elements(self):
+        import json
+        from clo2plt import document
+        from clo2plt.content import Label, Stroke
+
+        with tempfile.TemporaryDirectory() as tmp:
+            driver = os.path.join(tmp, "cull.mjs")
+            with open(driver, "w") as fh:
+                fh.write(CULL_DRIVER % {"root": ROOT})
+            out = subprocess.run(
+                ["node", driver, json.dumps(CULL_LABELS), json.dumps(CULL_STROKES)],
+                capture_output=True, text=True, check=True,
+            ).stdout
+        js = json.loads(out)
+
+        labels = [Label(t, (x, y), a, sz, "p") for t, x, y, a, sz in CULL_LABELS]
+        strokes = [Stroke([tuple(p) for p in pts], (0, 0, 0), 0, "p")
+                   for pts in CULL_STROKES]
+        kept_s, kept_l, _ = document.cull_offpage(strokes, labels, 1450, 1510.2)
+
+        self.assertEqual(js["labels"], [l.text for l in kept_l])
+        self.assertEqual(js["strokes"], len(kept_s))
+        self.assertEqual(js["labels"], ["perchado gris", "delantero", "inside"])
+
+
 def _add(name):
     def test(self):
         self._compare(name)

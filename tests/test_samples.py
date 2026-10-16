@@ -278,6 +278,62 @@ class Outlines(unittest.TestCase):
         self.assertTrue(all(s.kind == "label" for s in strokes))
 
 
+class OffPage(unittest.TestCase):
+    """Elements wholly outside the page are dropped; overruns are kept.
+
+    Modelled on a real CLO export that parked its "TELA GRIS" fabric tag
+    860 mm left of a 1450 mm page: invisible in the PDF, but it stretched
+    the plot and produced negative plotter coordinates.
+    """
+
+    def _stroke(self, pts, kind="cut"):
+        from clo2plt.content import Stroke
+        s = Stroke(pts, (0, 0, 0), 0.0, "piece")
+        s.kind = kind
+        return s
+
+    def _label(self, text, x, y, angle=0.0, size=18.0):
+        from clo2plt.content import Label
+        return Label(text, (x, y), angle, size, "piece")
+
+    def test_fabric_tag_far_left_is_dropped(self):
+        tag = self._label("TELA GRIS", -860.651, 67.6246)
+        _, labels, dropped = document.cull_offpage([], [tag], 1450.0, 1510.2)
+        self.assertEqual(labels, [])
+        self.assertEqual([d[2] for d in dropped], ["TELA GRIS"])
+
+    def test_label_overlapping_the_edge_is_kept(self):
+        # starts just left of the page but its text runs onto it
+        edge = self._label("perchado gris", -20.0, 50.0)
+        _, labels, dropped = document.cull_offpage([], [edge], 1450.0, 1510.2)
+        self.assertEqual(len(labels), 1)
+        self.assertEqual(dropped, [])
+
+    def test_rotated_label_uses_its_rotated_footprint(self):
+        # baseline origin below the page, but rotated 90 so it reads upwards
+        up = self._label("delantero", 100.0, -5.0, angle=90.0, size=11.0)
+        _, labels, _ = document.cull_offpage([], [up], 1450.0, 1510.2)
+        self.assertEqual(len(labels), 1)
+
+    def test_grain_arrow_overrunning_the_page_is_kept(self):
+        # the despiece waistband's grain arrow runs from y=-40 to y=140
+        arrow = self._stroke([(484.8, 113.0), (498.3, 140.0), (498.3, -40.0)], "grain")
+        strokes, _, dropped = document.cull_offpage([arrow], [], 1560.0, 3163.1)
+        self.assertEqual(len(strokes), 1)
+        self.assertEqual(dropped, [])
+
+    def test_stroke_wholly_off_page_is_dropped(self):
+        stray = self._stroke([(-900.0, 10.0), (-880.0, 10.0)])
+        strokes, _, dropped = document.cull_offpage([stray], [], 1450.0, 1510.2)
+        self.assertEqual(strokes, [])
+        self.assertEqual(dropped[0][0], "stroke")
+
+    @unittest.skipUnless(os.path.exists(DESPIECE), "samples not present")
+    def test_reference_markers_lose_nothing(self):
+        for path in (DESPIECE, RIB):
+            self.assertEqual(document.read(path).offpage, [])
+
+
 class Calibration(unittest.TestCase):
     """The calibration target is only useful if its dimensions are exact."""
 
