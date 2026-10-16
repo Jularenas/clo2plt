@@ -15,6 +15,7 @@ _TERM = "\x03"             # ETX, the default HP-GL label terminator
 # Older serial controllers have a 255-byte input buffer. Cap the command text
 # well under that so the CRLF terminators still fit.
 _MAX_LINE = 240
+_ADVANCE_FACTOR = 1.5      # HP-GL character advance, as a multiple of SI width
 
 
 def _u(mm):
@@ -101,17 +102,23 @@ def _labels(labels):
     lines = [f"DT{_TERM};"]
     retitled = []
     for l in labels:
-        # SI sets the character cell in centimetres. The ratios come from the
-        # embedded font's metrics (CapHeight 733/1000, typical advance 600/1000)
-        # so plotter text lands close to CLO's on-screen size.
-        w = 0.60 * l.size / 10.0
-        h = 0.72 * l.size / 10.0
-        rad = math.radians(l.angle)
-        lines.append(f"SI{w:.4f},{h:.4f};")
-        lines.append(f"DI{math.cos(rad):.6f},{math.sin(rad):.6f};")
         text, changed = _ascii(l.text)
         if changed:
             retitled.append((l.text, text))
+        # SI sets the character cell in centimetres: glyph width, cap height.
+        # HP-GL advances each character by 1.5x that width, and plotter fonts
+        # are fixed-pitch while CLO's is proportional -- so the width is
+        # solved from the label's true length in the PDF, making the plotted
+        # label exactly as long as CLO's. Without it labels ran ~1.8x long
+        # and overprinted their neighbours.
+        h = 0.72 * l.size / 10.0
+        if l.width and text:
+            w = l.width / (_ADVANCE_FACTOR * len(text)) / 10.0
+        else:
+            w = 0.60 * l.size / 10.0
+        rad = math.radians(l.angle)
+        lines.append(f"SI{w:.4f},{h:.4f};")
+        lines.append(f"DI{math.cos(rad):.6f},{math.sin(rad):.6f};")
         lines.append(f"PU{_u(l.origin[0])},{_u(l.origin[1])};")
         lines.append(f"LB{text}{_TERM};")
     lines.append("DI1,0;")

@@ -30,6 +30,7 @@ class Text:
     angle: float
     size: float
     pen: int
+    width: float = None     # plotted length in mm: chars x 1.5 x SI width
 
 
 @dataclass
@@ -69,7 +70,7 @@ def _text_corners(t):
     """
     rad = math.radians(t.angle)
     cos, sin = math.cos(rad), math.sin(rad)
-    length = _ADVANCE * t.size * max(len(t.text), 1)
+    length = t.width or _ADVANCE * t.size * max(len(t.text), 1)
     x, y = t.origin
     corners = []
     for along, up in ((0.0, -_DESCENT), (length, -_DESCENT),
@@ -122,7 +123,8 @@ def parse(data, units_per_mm=40.0):
             if label and pen:
                 angle = math.degrees(math.atan2(direction[1], direction[0]))
                 # SI height is the character cell in cm; report it in mm.
-                d.texts.append(Text(label, pos, angle, size[1] * 10.0, pen))
+                d.texts.append(Text(label, pos, angle, size[1] * 10.0, pen,
+                                    len(label) * 1.5 * size[0] * 10.0))
             i = end + len(term)
             if text[i : i + 1] == ";":
                 i += 1

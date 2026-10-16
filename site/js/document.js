@@ -2,7 +2,7 @@
 
 import * as classify from "./classify.js";
 import * as g from "./geometry.js";
-import { Interpreter, parseToUnicode } from "./content.js";
+import { Interpreter, parseToUnicode, parseWidths } from "./content.js";
 import { PdfError, load } from "./pdfread.js";
 
 export const MM_PER_POINT = 25.4 / 72;
@@ -23,7 +23,8 @@ export async function read(bytes, { tolerance = 0.05, pieces = null, keepOffpage
     MM_PER_POINT, 0, 0, MM_PER_POINT,
     -media[0] * MM_PER_POINT, -media[1] * MM_PER_POINT,
   ];
-  const interp = new Interpreter(pdf, tolerance, toUnicode(pdf));
+  const { widths, defaultWidth } = parseWidths(pdf.text);
+  const interp = new Interpreter(pdf, tolerance, toUnicode(pdf), widths, defaultWidth);
   interp.runPage(page, unit);
 
   const pageW = (media[2] - media[0]) * MM_PER_POINT;
@@ -105,7 +106,7 @@ export function labelBox(label) {
   const rad = (label.angle * Math.PI) / 180;
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
-  const length = ADVANCE * label.size * Math.max(label.text.length, 1);
+  const length = label.width || ADVANCE * label.size * Math.max(label.text.length, 1);
   const [x, y] = label.origin;
   const corners = [[0, -DESCENT], [length, -DESCENT], [length, ASCENT], [0, ASCENT]]
     .map(([along, up]) => {

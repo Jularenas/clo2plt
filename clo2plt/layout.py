@@ -31,7 +31,8 @@ def place(marker, rotate=0, origin="fit", scale=1.0):
         _moved(s, [g.apply(rot, x, y) for x, y in s.points]) for s in marker.strokes
     ]
     labels = [
-        _label(l, g.apply(rot, *l.origin), l.angle + rotate, l.size * scale)
+        _label(l, g.apply(rot, *l.origin), l.angle + rotate, l.size * scale,
+               l.width * scale if l.width else None)
         for l in marker.labels
     ]
 
@@ -60,7 +61,8 @@ def place(marker, rotate=0, origin="fit", scale=1.0):
             _moved(s, [(x + dx, y + dy) for x, y in s.points]) for s in strokes
         ]
         labels = [
-            _label(l, (l.origin[0] + dx, l.origin[1] + dy), l.angle, l.size)
+            _label(l, (l.origin[0] + dx, l.origin[1] + dy), l.angle, l.size,
+                   l.width)
             for l in labels
         ]
 
@@ -76,10 +78,10 @@ def _moved(stroke, points):
     return out
 
 
-def _label(label, origin, angle, size):
+def _label(label, origin, angle, size, width):
     from .content import Label
 
-    return Label(label.text, origin, _norm(angle), size, label.piece)
+    return Label(label.text, origin, _norm(angle), size, label.piece, width)
 
 
 def _norm(deg):

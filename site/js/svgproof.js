@@ -73,6 +73,7 @@ export function svg(strokes, labels, extent, marker, { showPage = true } = {}) {
       body.push(
         `<text x="0" y="0" font-size="${l.size.toFixed(2)}" ` +
           `font-family="system-ui,sans-serif" ` +
+          (l.width ? `textLength="${l.width.toFixed(2)}" lengthAdjust="spacingAndGlyphs" ` : "") +
           `transform="translate(${sx.toFixed(3)},${sy.toFixed(3)}) rotate(${(-l.angle).toFixed(3)})">` +
           `${esc(l.text)}</text>`
       );

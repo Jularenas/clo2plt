@@ -55,7 +55,13 @@ def main(argv=None):
 
     # Name the pens when they match clo2plt's default map, so a converted
     # marker reads as cut/seam/notch rather than 1/2/3.
-    names = {pen: kind for kind, pen in classify.DEFAULT_PENS.items()}
+    # Several line types can share a pen (labels ride with cut lines), so
+    # join them rather than letting the last one win.
+    names = {}
+    for kind, pen in classify.DEFAULT_PENS.items():
+        if kind != classify.UNKNOWN:
+            names.setdefault(pen, []).append(kind)
+    names = {pen: ", ".join(kinds) for pen, kinds in names.items()}
 
     _report(args.input, drawing, names)
 

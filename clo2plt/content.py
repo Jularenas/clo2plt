@@ -44,6 +44,10 @@ class Label:
     angle: float
     size: float
     piece: str
+    # True advance width along the baseline in mm, from the font's glyph
+    # metrics. None when unknown (synthetic labels), in which case callers
+    # fall back to an estimate from `size`.
+    width: float = None
 
 
 @dataclass
@@ -84,10 +88,13 @@ def _as_num(tok):
 
 
 class Interpreter:
-    def __init__(self, pdf, tolerance=0.05, to_unicode=None):
+    def __init__(self, pdf, tolerance=0.05, to_unicode=None, widths=None,
+                 default_width=1000.0):
         self.pdf = pdf
         self.tol = tolerance
         self.to_unicode = to_unicode or {}
+        self.widths = widths or {}
+        self.default_width = default_width
         self.result = Result()
         self.piece = ""
         self._font_size = 0.0
@@ -171,6 +178,7 @@ class Interpreter:
         current = None
         start = None
         pending_text = None
+        pending_codes = []
         text_matrix = None
 
         for tok in tokenize(stream):
@@ -255,11 +263,13 @@ class Interpreter:
                     (1, 0, 0, 1, operands[-2], operands[-1]), text_matrix or g.IDENTITY
                 )
             elif op in (b"Tj", b"TJ", b"'", b'"'):
-                pending_text = _text_of(operands, self.to_unicode)
+                pending_codes = _codes_of(operands)
+                pending_text = _decode(pending_codes, self.to_unicode)
             elif op == b"ET":
                 if pending_text and text_matrix:
-                    self._label(pending_text, text_matrix, st)
+                    self._label(pending_text, pending_codes, text_matrix, st)
                 pending_text = None
+                pending_codes = []
                 text_matrix = None
 
             # -- XObjects
@@ -305,15 +315,20 @@ class Interpreter:
                     Stroke(pts, st.rgb, st.width * g.scale_of(st.ctm), self.piece)
                 )
 
-    def _label(self, text, tm, st):
+    def _label(self, text, codes, tm, st):
         m = g.multiply(tm, st.ctm)
+        size = self._font_size * g.scale_of(m)
+        # Glyph widths are in thousandths of the font size. CLO embeds a
+        # single font, so one merged width table covers every label.
+        units = sum(self.widths.get(c, self.default_width) for c in codes)
         self.result.labels.append(
             Label(
                 text=text,
                 origin=(m[4], m[5]),
                 angle=g.rotation_of(m),
-                size=self._font_size * g.scale_of(m),
+                size=size,
                 piece=self.piece,
+                width=units / 1000.0 * size,
             )
         )
 
@@ -334,8 +349,8 @@ def _form_order(name):
     return (int(m.group(1)) if m else 0, name)
 
 
-def _text_of(operands, to_unicode):
-    """Decode string operands of a text-showing operator."""
+def _codes_of(operands):
+    """Two-byte character codes (Identity-H) of a text-showing operator."""
     chunks = []
     for tok in operands:
         if not isinstance(tok, bytes):
@@ -348,14 +363,50 @@ def _text_of(operands, to_unicode):
                 hexdigits += b"0"
             chunks.append(bytes.fromhex(hexdigits.decode("ascii")))
     raw = b"".join(chunks)
-    if not raw:
-        return ""
-    # Identity-H: two-byte codes, resolved through ToUnicode when present.
-    out = []
-    for i in range(0, len(raw) - 1, 2):
-        code = (raw[i] << 8) | raw[i + 1]
-        out.append(to_unicode.get(code, chr(code)))
-    return "".join(out).strip()
+    return [(raw[i] << 8) | raw[i + 1] for i in range(0, len(raw) - 1, 2)]
+
+
+def _decode(codes, to_unicode):
+    """Resolve codes through ToUnicode, falling back to the code point."""
+    return "".join(to_unicode.get(c, chr(c)) for c in codes).strip()
+
+
+def parse_widths(data):
+    """Merge every CID font /W array in the file into {code: width}.
+
+    Also returns the /DW default (1000 if absent). Format per the PDF spec:
+    `c [w1 w2 ...]` assigns consecutive codes, `c1 c2 w` assigns a range.
+    """
+    widths = {}
+    for m in re.finditer(rb"/W\s*\[", data):
+        i = m.end()
+        depth, j = 1, i
+        while depth and j < len(data):
+            c = data[j:j + 1]
+            depth += (c == b"[") - (c == b"]")
+            j += 1
+        toks = re.findall(rb"\[|\]|[-+]?\d*\.?\d+", data[i:j - 1])
+        k = 0
+        try:
+            while k < len(toks):
+                first = int(float(toks[k]))
+                if toks[k + 1] == b"[":
+                    k += 2
+                    code = first
+                    while toks[k] != b"]":
+                        widths[code] = float(toks[k])
+                        code += 1
+                        k += 1
+                    k += 1
+                else:
+                    last, value = int(float(toks[k + 1])), float(toks[k + 2])
+                    for code in range(first, last + 1):
+                        widths[code] = value
+                    k += 3
+        except (IndexError, ValueError):
+            continue  # malformed array: keep what was read, estimate the rest
+    m = re.search(rb"/DW\s+([-+]?\d*\.?\d+)", data)
+    return widths, float(m.group(1)) if m else 1000.0
 
 
 def parse_to_unicode(stream):

@@ -6,6 +6,7 @@ import { pyRound } from "./geometry.js";
 export const UNITS_PER_MM = 40; // 1 plotter unit = 0.025 mm
 const TERM = "\x03";            // ETX, the default HP-GL label terminator
 const MAX_LINE = 240;           // stay under a 255-byte controller buffer
+const ADVANCE_FACTOR = 1.5;     // HP-GL character advance, as a multiple of SI width
 
 function u(mm) {
   return pyRound(mm * UNITS_PER_MM);
@@ -86,15 +87,18 @@ function labelBlock(labels) {
   const lines = [`DT${TERM};`];
   const retitled = [];
   for (const l of labels) {
-    // SI sets the character cell in centimetres; ratios come from the
-    // embedded font's metrics so plotter text matches CLO's size.
-    const w = (0.6 * l.size) / 10;
+    const [text, changed] = toAscii(l.text);
+    if (changed) retitled.push([l.text, text]);
+    // SI is glyph width and cap height in cm. HP-GL advances 1.5x the width
+    // and plotter fonts are fixed-pitch, so the width is solved from the
+    // label's true PDF length; otherwise labels run ~1.8x long and overlap.
     const h = (0.72 * l.size) / 10;
+    const w = l.width && text.length
+      ? l.width / (ADVANCE_FACTOR * text.length) / 10
+      : (0.6 * l.size) / 10;
     const rad = (l.angle * Math.PI) / 180;
     lines.push(`SI${w.toFixed(4)},${h.toFixed(4)};`);
     lines.push(`DI${Math.cos(rad).toFixed(6)},${Math.sin(rad).toFixed(6)};`);
-    const [text, changed] = toAscii(l.text);
-    if (changed) retitled.push([l.text, text]);
     lines.push(`PU${u(l.origin[0])},${u(l.origin[1])};`);
     lines.push(`LB${text}${TERM};`);
   }

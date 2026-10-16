@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from . import classify
 from . import geometry as g
-from .content import Interpreter, parse_to_unicode
+from .content import Interpreter, parse_to_unicode, parse_widths
 from .pdfread import PdfError, load
 
 MM_PER_POINT = 25.4 / 72.0
@@ -68,7 +68,9 @@ def read(path, tolerance=0.05, pieces=None, keep_offpage=False):
     # throughout from here on.
     unit = (MM_PER_POINT, 0.0, 0.0, MM_PER_POINT,
             -media[0] * MM_PER_POINT, -media[1] * MM_PER_POINT)
-    interp = Interpreter(pdf, tolerance=tolerance, to_unicode=_to_unicode(pdf))
+    widths, default_width = parse_widths(pdf.data)
+    interp = Interpreter(pdf, tolerance=tolerance, to_unicode=_to_unicode(pdf),
+                         widths=widths, default_width=default_width)
     result = interp.run_page(page, unit)
 
     # Page content is millimetres; the page-level `cm` supplies the scale that
@@ -139,7 +141,7 @@ def label_box(label):
     """Approximate (minx, miny, maxx, maxy) of a label, from its baseline start."""
     rad = math.radians(label.angle)
     cos, sin = math.cos(rad), math.sin(rad)
-    length = _ADVANCE * label.size * max(len(label.text), 1)
+    length = label.width or _ADVANCE * label.size * max(len(label.text), 1)
     x, y = label.origin
     corners = []
     for along, up in ((0.0, -_DESCENT), (length, -_DESCENT),

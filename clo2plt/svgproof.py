@@ -114,8 +114,10 @@ def emit_drawing(drawing, title="plt preview", pen_names=None):
             )
         for t in (t for t in drawing.texts if t.pen == pen):
             sx, sy = (t.origin[0] - minx + pad), (maxy - t.origin[1] + pad)
+            fit = (f' textLength="{t.width:.2f}" lengthAdjust="spacingAndGlyphs"'
+                   if t.width else "")
             body.append(
-                f'<text x="0" y="0" fill="{colour}" stroke="none"'
+                f'<text x="0" y="0" fill="{colour}" stroke="none"{fit}'
                 f' font-size="{t.size:.2f}" font-family="system-ui,sans-serif"'
                 f' transform="translate({sx:.3f},{sy:.3f}) rotate({-t.angle:.3f})">'
                 f"{html.escape(t.text)}</text>"
@@ -182,9 +184,11 @@ def emit(strokes, labels, extent, marker, pens, title="marker proof"):
         for l in labels:
             x, y = l.origin
             sx, sy = (x - minx + pad), (maxy - y + pad)
+            fit = (f' textLength="{l.width:.2f}" lengthAdjust="spacingAndGlyphs"'
+                   if l.width else "")
             body.append(
                 f'<text x="0" y="0" font-size="{l.size:.2f}"'
-                f' font-family="system-ui,sans-serif"'
+                f' font-family="system-ui,sans-serif"{fit}'
                 f' transform="translate({sx:.3f},{sy:.3f}) rotate({-l.angle:.3f})">'
                 f"{html.escape(l.text)}</text>"
             )

@@ -22,6 +22,7 @@ export function place(marker, rotate = 0, origin = "fit", scale = 1) {
     origin: g.apply(rot, l.origin[0], l.origin[1]),
     angle: norm(l.angle + rotate),
     size: l.size * scale,
+    width: l.width ? l.width * scale : l.width,
   }));
 
   const box = g.bbox(strokes.map((s) => s.points)) || [0, 0, 0, 0];

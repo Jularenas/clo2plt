@@ -25,10 +25,12 @@ function asNum(tok) {
 }
 
 export class Interpreter {
-  constructor(pdf, tolerance = 0.05, toUnicode = null) {
+  constructor(pdf, tolerance = 0.05, toUnicode = null, widths = null, defaultWidth = 1000) {
     this.pdf = pdf;
     this.tol = tolerance;
     this.toUnicode = toUnicode || new Map();
+    this.widths = widths || new Map();
+    this.defaultWidth = defaultWidth;
     this.strokes = [];
     this.labels = [];
     this.fillsDropped = 0;
@@ -114,6 +116,7 @@ export class Interpreter {
     let current = null;
     let start = null;
     let pendingText = null;
+    let pendingCodes = [];
     let textMatrix = null;
 
     for (const tok of tokenize(stream)) {
@@ -193,10 +196,12 @@ export class Interpreter {
           textMatrix || g.IDENTITY
         );
       } else if (op === "Tj" || op === "TJ" || op === "'" || op === '"') {
-        pendingText = textOf(operands, this.toUnicode);
+        pendingCodes = codesOf(operands);
+        pendingText = decode(pendingCodes, this.toUnicode);
       } else if (op === "ET") {
-        if (pendingText && textMatrix) this.#label(pendingText, textMatrix, st);
+        if (pendingText && textMatrix) this.#label(pendingText, pendingCodes, textMatrix, st);
         pendingText = null;
+        pendingCodes = [];
         textMatrix = null;
       } else if (op === "Do" && n) {
         const name = operands[n - 1];
@@ -252,14 +257,19 @@ export class Interpreter {
     }
   }
 
-  #label(text, tm, st) {
+  #label(text, codes, tm, st) {
     const m = g.multiply(tm, st.ctm);
+    const size = this.fontSize * g.scaleOf(m);
+    // Glyph widths are thousandths of the font size; CLO embeds one font.
+    let units = 0;
+    for (const c of codes) units += this.widths.get(c) ?? this.defaultWidth;
     this.labels.push({
       text,
       origin: [m[4], m[5]],
       angle: g.rotationOf(m),
-      size: this.fontSize * g.scaleOf(m),
+      size,
       piece: this.piece,
+      width: (units / 1000) * size,
     });
   }
 
@@ -291,7 +301,7 @@ function formOrder(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-function textOf(operands, toUnicode) {
+function codesOf(operands) {
   let raw = "";
   for (const tok of operands) {
     if (typeof tok !== "string") continue;
@@ -305,14 +315,63 @@ function textOf(operands, toUnicode) {
       }
     }
   }
-  if (!raw) return "";
-  // Identity-H: two-byte codes, resolved through ToUnicode when present.
-  let out = "";
+  // Identity-H: two-byte codes.
+  const codes = [];
   for (let i = 0; i + 1 < raw.length; i += 2) {
-    const code = (raw.charCodeAt(i) << 8) | raw.charCodeAt(i + 1);
-    out += toUnicode.get(code) ?? String.fromCharCode(code);
+    codes.push((raw.charCodeAt(i) << 8) | raw.charCodeAt(i + 1));
   }
+  return codes;
+}
+
+function decode(codes, toUnicode) {
+  let out = "";
+  for (const c of codes) out += toUnicode.get(c) ?? String.fromCharCode(c);
   return out.trim();
+}
+
+/** Merge every CID font /W array into a Map(code -> width), plus /DW. */
+export function parseWidths(text) {
+  const widths = new Map();
+  const head = /\/W\s*\[/g;
+  let m;
+  while ((m = head.exec(text)) !== null) {
+    let depth = 1;
+    let j = m.index + m[0].length;
+    const start = j;
+    while (depth && j < text.length) {
+      if (text[j] === "[") depth += 1;
+      else if (text[j] === "]") depth -= 1;
+      j += 1;
+    }
+    const toks = text.slice(start, j - 1).match(/\[|\]|[-+]?\d*\.?\d+/g) || [];
+    let k = 0;
+    try {
+      while (k < toks.length) {
+        const first = Math.trunc(Number(toks[k]));
+        if (toks[k + 1] === "[") {
+          k += 2;
+          let code = first;
+          while (toks[k] !== "]") {
+            if (toks[k] === undefined) throw new Error("unterminated");
+            widths.set(code, Number(toks[k]));
+            code += 1;
+            k += 1;
+          }
+          k += 1;
+        } else {
+          if (toks[k + 2] === undefined) throw new Error("short range");
+          const last = Math.trunc(Number(toks[k + 1]));
+          const value = Number(toks[k + 2]);
+          for (let code = first; code <= last; code += 1) widths.set(code, value);
+          k += 3;
+        }
+      }
+    } catch {
+      // malformed array: keep what was read, estimate the rest
+    }
+  }
+  const dw = /\/DW\s+([-+]?\d*\.?\d+)/.exec(text);
+  return { widths, defaultWidth: dw ? Number(dw[1]) : 1000 };
 }
 
 export function parseToUnicode(stream) {
